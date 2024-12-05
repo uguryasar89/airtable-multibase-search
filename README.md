@@ -1,4 +1,4 @@
-# Airtable Multi Base Search
+# Airtable Multi Base Search Extension
 
 This project is an Airtable extension that allows users to search records from a different base than the current one. It is aimed at searching archived records.
 
