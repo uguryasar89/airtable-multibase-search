@@ -1,21 +1,33 @@
-import { initializeBlock, Label, Select, Box } from '@airtable/blocks/ui';
-import React from 'react';
-import { useEffect, useState } from 'react';
-import { Button } from '@airtable/blocks/ui';
+import { initializeBlock, Label, Select, Box, Button } from '@airtable/blocks/ui';
+import React, { useEffect, useState } from 'react';
 import { globalConfig } from '@airtable/blocks';
 import config from '../config'; // Import the config
 
 const apiToken = config.apiToken; // Get the apiToken from config
 
 function PaymentPlans() {
-
     const [bases, setBases] = useState([]);
     const [tables, setTables] = useState([]);
     const [table, setTable] = useState('');
     const [value, setValue] = useState('');
-    
+    const [records, setRecords] = useState([]);
 
     useEffect(() => {
+        const selectedBase = globalConfig.get('selectedBase');
+        const selectedTable = globalConfig.get('selectedTable');
+        
+        if (selectedBase && selectedTable) {
+            document.getElementById('baseSelect').style.display = 'none';
+            document.getElementById('tableSelect').style.display = 'none';
+            document.getElementById('searchDiv').style.display = 'flex';
+        } else if (selectedBase) {
+            fetchTables(selectedBase);
+        } else {
+            fetchBases();
+        }
+    }, []);
+
+    const fetchBases = () => {
         fetch('https://api.airtable.com/v0/meta/bases', {
             method: 'GET',
             headers: {
@@ -33,10 +45,10 @@ function PaymentPlans() {
             }
         })
         .catch(error => console.error('Error fetching bases:', error));
-    }, []);
+    };
 
-    const handleSave = () => {
-        globalConfig.setAsync('selectedBase', value)
+    const fetchTables = (baseId) => {
+        globalConfig.setAsync('selectedBase', baseId)
             .then(() => {
                 document.getElementById('baseSelect').style.display = 'none'; // Hide the div by setting display to 'none'
                 document.getElementById('tableSelect').style.display = 'flex'; // Show the div by setting display to 'flex'
@@ -45,10 +57,10 @@ function PaymentPlans() {
                 console.error('Error saving base:', error);
             });
 
-        fetch('https://api.airtable.com/v0/meta/bases/appl4vACcHhRlcu6Z/tables', {
+        fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
             method: 'GET',
             headers: {
-                'Authorization': token
+                'Authorization': apiToken
             }
         })
         .then(response => response.json())
@@ -60,12 +72,9 @@ function PaymentPlans() {
             if (newTables.length > 0) {
                 setTable(newTables[0].value);
             }
-
         })
         .catch(error => console.error('Error fetching tables:', error));
     };
-
-    const [records, setRecords] = useState([]);
 
     const fetchRecords = (searchText) => {
         let selectedTable = globalConfig.get('selectedTable');
@@ -75,7 +84,7 @@ function PaymentPlans() {
         fetch(URL, {
             method: 'GET',
             headers: {
-                'Authorization': token
+                'Authorization': apiToken
             }
         })
         .then(response => response.json())
@@ -112,14 +121,14 @@ function PaymentPlans() {
                     style={{ marginBottom: '20px' }}
                 />
                 <Button
-                    onClick={handleSave}
+                    onClick={() => fetchTables(value)}
                     variant="primary"
                     style={{ backgroundColor: '#007bff', color: '#ffffff', padding: '10px 20px', borderRadius: '4px' }}
                 >
                     Save Selected Base
                 </Button>
             </div>
-            <div id="tableSelect" style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', marginTop: '20px' }}>
+            <div id="tableSelect" style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)' }}>
                 <Label htmlFor="table-select" style={{ marginBottom: '10px', fontSize: '16px', fontWeight: 'bold' }}>Arşiv Kayıtlarının Olduğu Tabloyu Seçiniz</Label>
                 <Select
                     id="table-select"
@@ -137,9 +146,7 @@ function PaymentPlans() {
                     Save Selected Table
                 </Button>
             </div>
-            
             <div id='searchDiv' style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', marginTop: '20px' }}>
-                
                 <Label htmlFor="text-input" style={{ textAlign: 'center' }}>Aranacak metni girin</Label>
                 <input
                     type="text"
@@ -153,8 +160,6 @@ function PaymentPlans() {
                     style={{ width: '320px', padding: '8px', marginTop: '20px', textAlign: 'center' }}
                 />
             </div>
-
-           
             <div id='recordsDiv' style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', marginTop: '20px' }}>
                 {records && records.length > 0 ? (
                     records.map(record => (
@@ -164,29 +169,10 @@ function PaymentPlans() {
                     <Label>No records found</Label>
                 )}
             </div>
-                
-            
         </div>
     );
 }
 
-
-/*
-
-const [field, setField] = useState(null);
-  const base = useBase();
-  const table = base.getTableByNameIfExists("Tasks");
-  // If table is null or undefined, the FieldPicker will not render.
-  return (
-    <FieldPicker
-      table={table}
-      field={field}
-      onChange={newField => setField(newField)}
-      width="320px"
-    />
-  );
-
-*/
 const CustomRecordCard = ({ record }) => {
     return (
         <Box
