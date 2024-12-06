@@ -1,11 +1,12 @@
-import { initializeBlock, Label, Select, Box, Button } from '@airtable/blocks/ui';
+import { initializeBlock, Label, Select, Button } from '@airtable/blocks/ui';
 import React, { useEffect, useState } from 'react';
 import { globalConfig } from '@airtable/blocks';
 import config from '../config'; // Import the config
+import CustomRecordCard from './CustomRecordCard'; // Import CustomRecordCard
 
 const apiToken = config.apiToken; // Get the apiToken from config
 
-function PaymentPlans() {
+function MultiBaseSearch() {
     const [bases, setBases] = useState([]);
     const [tables, setTables] = useState([]);
     const [table, setTable] = useState('');
@@ -173,25 +174,4 @@ function PaymentPlans() {
     );
 }
 
-const CustomRecordCard = ({ record }) => {
-    return (
-        <Box
-            border="default"
-            borderRadius="large"
-            padding={3}
-            marginBottom={2}
-            backgroundColor="white"
-            width="100%"
-            maxWidth="400px"
-            boxShadow="0 2px 4px rgba(0, 0, 0, 0.1)"
-            onClick={() => window.open("https://airtable.com/appl4vACcHhRlcu6Z/tblfuuWvtcpA4Texv/viwHbrhprBhVOOpLN/reck4M1SQ0KzlEWGu?copyLinkToCellOrRecordOrigin=gridView&blocks=hide", "_blank")}
-            style={{ cursor: 'pointer' }}
-        >
-            <Label size="large" marginBottom={2}>
-                {record.fields.Name}
-            </Label>
-        </Box>
-    );
-};
-
-initializeBlock(() => <PaymentPlans />);
+initializeBlock(() => <MultiBaseSearch />);
