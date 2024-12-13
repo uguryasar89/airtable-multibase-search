@@ -18,8 +18,9 @@ function PaymentPlans() {
     useEffect(() => {
         const selectedBase = globalConfig.get('selectedBase');
         const selectedTable = globalConfig.get('selectedTable');
+        const selectedView = globalConfig.get('selectedView');
         
-        if (selectedBase && selectedTable) {
+        if (selectedBase && selectedTable && selectedView) {
             hideElement('baseSelect');
             hideElement('tableSelect');
             showElement('searchDiv');
@@ -68,7 +69,7 @@ function PaymentPlans() {
         })
         .then(response => response.json())
         .then(data => {
-            const newTables = data.tables.map(table => ({ value: table.id, label: table.name }));
+            const newTables = data.tables.map(table => ({ value: table.id, label: table.name, view: table.views[0].id }));
             newTables.unshift({ value: '', label: 'Tablo Seçin' });
             setTables(newTables);
             
@@ -82,6 +83,7 @@ function PaymentPlans() {
     const fetchRecords = (searchText) => {
         let selectedTable = globalConfig.get('selectedTable');
         let selectedBase = globalConfig.get('selectedBase');
+        let selectedView = globalConfig.get('selectedView');
 
         const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND("${searchText}", {Name})`)}&maxRecords=1`;
 
@@ -102,8 +104,10 @@ function PaymentPlans() {
     }
     
     const saveTable = () => {
-        globalConfig.setAsync('selectedTable', table)
+        const selectedTableObj = tables.find(t => t.value === table);
+        globalConfig.setAsync('selectedTable', selectedTableObj.value)
             .then(() => {
+                globalConfig.setAsync('selectedView', selectedTableObj.view);
                 hideElement('tableSelect'); 
                 showElement('searchDiv');
             })
@@ -156,10 +160,10 @@ function PaymentPlans() {
                     type="text"
                     id="text-input"
                     onKeyPress={(event) => {
-                    if (event.key === 'Enter') {
-                        const searchText = event.target.value;
-                        fetchRecords(searchText);
-                    }
+                        if (event.key === 'Enter') {
+                            const searchText = event.target.value;
+                            fetchRecords(searchText);
+                        }
                     }}
                     className="input"
                 />
@@ -167,7 +171,7 @@ function PaymentPlans() {
             <div id='recordsDiv' className="records-container">
                 {records && records.length > 0 ? (
                     records.map(record => (
-                        <CustomRecordCard key={record.id} record={record} />
+                        <CustomRecordCard key={record.id} record={record} selectedBase={globalConfig.get('selectedBase')} selectedTable={globalConfig.get('selectedTable')} selectedView={globalConfig.get('selectedView')} />
                     ))
                 ) : (
                     <Label>No records found</Label>
