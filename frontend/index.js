@@ -1,12 +1,14 @@
 import { initializeBlock, Label, Select, Button } from '@airtable/blocks/ui';
 import React, { useEffect, useState } from 'react';
 import { globalConfig } from '@airtable/blocks';
-import config from '../config'; // Import the config
-import CustomRecordCard from './CustomRecordCard'; // Import CustomRecordCard
+import config from '../config'; 
+import CustomRecordCard from './CustomRecordCard'; 
+import { hideElement, showElement } from './util';
+import './styles.css';
 
-const apiToken = config.apiToken; // Get the apiToken from config
+const apiToken = config.apiToken; 
 
-function MultiBaseSearch() {
+function PaymentPlans() {
     const [bases, setBases] = useState([]);
     const [tables, setTables] = useState([]);
     const [table, setTable] = useState('');
@@ -18,9 +20,9 @@ function MultiBaseSearch() {
         const selectedTable = globalConfig.get('selectedTable');
         
         if (selectedBase && selectedTable) {
-            document.getElementById('baseSelect').style.display = 'none';
-            document.getElementById('tableSelect').style.display = 'none';
-            document.getElementById('searchDiv').style.display = 'flex';
+            hideElement('baseSelect');
+            hideElement('tableSelect');
+            showElement('searchDiv');
         } else if (selectedBase) {
             fetchTables(selectedBase);
         } else {
@@ -51,8 +53,8 @@ function MultiBaseSearch() {
     const fetchTables = (baseId) => {
         globalConfig.setAsync('selectedBase', baseId)
             .then(() => {
-                document.getElementById('baseSelect').style.display = 'none'; // Hide the div by setting display to 'none'
-                document.getElementById('tableSelect').style.display = 'flex'; // Show the div by setting display to 'flex'
+                hideElement('baseSelect');
+                showElement('tableSelect');
             })
             .catch(error => {
                 console.error('Error saving base:', error);
@@ -80,8 +82,9 @@ function MultiBaseSearch() {
     const fetchRecords = (searchText) => {
         let selectedTable = globalConfig.get('selectedTable');
         let selectedBase = globalConfig.get('selectedBase');
-        let URL = 'https://api.airtable.com/v0/' + selectedBase + '/' + selectedTable + '?filterByFormula=' + encodeURIComponent('FIND("' + searchText + '",{Name})') + '&maxRecords=1';
-        alert(URL);
+
+        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND("${searchText}", {Name})`)}&maxRecords=1`;
+
         fetch(URL, {
             method: 'GET',
             headers: {
@@ -92,8 +95,8 @@ function MultiBaseSearch() {
         .then(data => {
             setRecords(data.records);
             globalConfig.setAsync('records', data.records);
-            document.getElementById('recordsDiv').style.display = 'flex'; // Show the div by setting display to 'flex'
-            document.getElementById('searchDiv').style.display = 'none'; // Hide the div by setting display to 'none'
+            showElement('recordsDiv');
+            hideElement('searchDiv'); 
         })
         .catch(error => console.error('Error fetching tables:', error));
     }
@@ -101,8 +104,8 @@ function MultiBaseSearch() {
     const saveTable = () => {
         globalConfig.setAsync('selectedTable', table)
             .then(() => {
-                document.getElementById('tableSelect').style.display = 'none'; // Hide the div by setting display to 'none'
-                document.getElementById('searchDiv').style.display = 'flex'; // Show the div by setting display to 'flex'
+                hideElement('tableSelect'); 
+                showElement('searchDiv');
             })
             .catch(error => {
                 console.error('Error saving table:', error);
@@ -110,9 +113,9 @@ function MultiBaseSearch() {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100vh', backgroundColor: '#f0f4f8', padding: '20px' }}>
-            <div id="baseSelect" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)' }}>
-                <Label htmlFor="base-select" style={{ marginBottom: '10px', fontSize: '16px', fontWeight: 'bold' }}>Arşiv Kayıtlarının Olduğu Base'i Seçiniz</Label>
+        <div className="container">
+            <div id="baseSelect" className="select-container">
+                <Label htmlFor="base-select" className="label">Arşiv Kayıtlarının Olduğu Base'i Seçiniz</Label>
                 <Select
                     id="base-select"
                     options={bases}
@@ -124,13 +127,13 @@ function MultiBaseSearch() {
                 <Button
                     onClick={() => fetchTables(value)}
                     variant="primary"
-                    style={{ backgroundColor: '#007bff', color: '#ffffff', padding: '10px 20px', borderRadius: '4px' }}
+                    className="button"
                 >
                     Save Selected Base
                 </Button>
             </div>
-            <div id="tableSelect" style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)' }}>
-                <Label htmlFor="table-select" style={{ marginBottom: '10px', fontSize: '16px', fontWeight: 'bold' }}>Arşiv Kayıtlarının Olduğu Tabloyu Seçiniz</Label>
+            <div id="tableSelect" className="select-container" style={{ display: 'none' }}>
+                <Label htmlFor="table-select" className="label">Arşiv Kayıtlarının Olduğu Tabloyu Seçiniz</Label>
                 <Select
                     id="table-select"
                     options={tables}
@@ -142,12 +145,12 @@ function MultiBaseSearch() {
                 <Button
                     onClick={saveTable}
                     variant="primary"
-                    style={{ backgroundColor: '#007bff', color: '#ffffff', padding: '10px 20px', borderRadius: '4px' }}
+                    className="button"
                 >
                     Save Selected Table
                 </Button>
             </div>
-            <div id='searchDiv' style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', marginTop: '20px' }}>
+            <div id='searchDiv' className="select-container" style={{ display: 'none', marginTop: '20px' }}>
                 <Label htmlFor="text-input" style={{ textAlign: 'center' }}>Aranacak metni girin</Label>
                 <input
                     type="text"
@@ -158,10 +161,10 @@ function MultiBaseSearch() {
                         fetchRecords(searchText);
                     }
                     }}
-                    style={{ width: '320px', padding: '8px', marginTop: '20px', textAlign: 'center' }}
+                    className="input"
                 />
             </div>
-            <div id='recordsDiv' style={{ display: 'none', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)', marginTop: '20px' }}>
+            <div id='recordsDiv' className="records-container">
                 {records && records.length > 0 ? (
                     records.map(record => (
                         <CustomRecordCard key={record.id} record={record} />
@@ -174,4 +177,4 @@ function MultiBaseSearch() {
     );
 }
 
-initializeBlock(() => <MultiBaseSearch />);
+initializeBlock(() => <PaymentPlans />);
