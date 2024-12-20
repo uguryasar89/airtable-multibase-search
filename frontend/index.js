@@ -85,7 +85,7 @@ function PaymentPlans() {
         let selectedBase = globalConfig.get('selectedBase');
         let selectedView = globalConfig.get('selectedView');
 
-        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND("${searchText}", {Name})`)}&maxRecords=1`;
+        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND("${searchText}", {Name})`)}`;
 
         fetch(URL, {
             method: 'GET',
@@ -95,12 +95,22 @@ function PaymentPlans() {
         })
         .then(response => response.json())
         .then(data => {
-            setRecords(data.records);
-            globalConfig.setAsync('records', data.records);
+            const uniqueRecords = [];
+            const recordNames = new Set();
+
+            data.records.forEach(record => {
+                if (!recordNames.has(record.fields.Name)) {
+                    recordNames.add(record.fields.Name);
+                    uniqueRecords.push(record);
+                }
+            });
+
+            setRecords(uniqueRecords);
+            globalConfig.setAsync('records', uniqueRecords);
             showElement('recordsDiv');
             hideElement('searchDiv'); 
         })
-        .catch(error => console.error('Error fetching tables:', error));
+        .catch(error => console.error('Error fetching records:', error));
     }
     
     const saveTable = () => {
