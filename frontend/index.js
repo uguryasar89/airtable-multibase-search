@@ -85,7 +85,7 @@ function PaymentPlans() {
         let selectedBase = globalConfig.get('selectedBase');
         let selectedView = globalConfig.get('selectedView');
 
-        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND("${searchText}", {Name})`)}`;
+        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
 
         fetch(URL, {
             method: 'GET',
