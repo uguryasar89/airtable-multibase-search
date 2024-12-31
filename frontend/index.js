@@ -108,7 +108,7 @@ function PaymentPlans() {
             setRecords(uniqueRecords);
             globalConfig.setAsync('records', uniqueRecords);
             showElement('recordsDiv');
-            hideElement('searchDiv'); 
+            document.getElementById('text-input').value = ''; // Clear the search text after search is completed
         })
         .catch(error => console.error('Error fetching records:', error));
     }
