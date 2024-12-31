@@ -173,9 +173,11 @@ function PaymentPlans() {
                         if (event.key === 'Enter') {
                             const searchText = event.target.value;
                             fetchRecords(searchText);
+                            event.target.value = ''; 
                         }
                     }}
                     className="input"
+                    style={{ width: '100%' }}
                 />
             </div>
             <div id='recordsDiv' className="records-container">
