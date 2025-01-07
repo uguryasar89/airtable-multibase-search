@@ -14,6 +14,11 @@ function PaymentPlans() {
     const [table, setTable] = useState('');
     const [value, setValue] = useState('');
     const [records, setRecords] = useState([]);
+    const [offsets, setOffsets] = useState({});
+    const [currentPage, setCurrentPage] = useState(0);
+    const [searchText, setSearchText] = useState('');
+    const [hasNextPage, setHasNextPage] = useState(false);
+    const [hasPreviousPage, setHasPreviousPage] = useState(false);
 
     useEffect(() => {
         const selectedBase = globalConfig.get('selectedBase');
@@ -80,12 +85,18 @@ function PaymentPlans() {
         .catch(error => console.error('Error fetching tables:', error));
     };
 
-    const fetchRecords = (searchText) => {
+    const fetchRecords = (searchText, offset) => {
         let selectedTable = globalConfig.get('selectedTable');
         let selectedBase = globalConfig.get('selectedBase');
-        let selectedView = globalConfig.get('selectedView');
 
-        const URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
+        hideElement('pagination');
+        setHasPreviousPage(false);
+
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
+
+        if (offset) {
+            URL += `&offset=${encodeURIComponent(offset)}`;
+        }
 
         fetch(URL, {
             method: 'GET',
@@ -108,11 +119,110 @@ function PaymentPlans() {
             setRecords(uniqueRecords);
             globalConfig.setAsync('records', uniqueRecords);
             showElement('recordsDiv');
-            document.getElementById('text-input').value = ''; // Clear the search text after search is completed
+            document.getElementById('text-input').value = '';
+
+            setCurrentPage(1);
+
+            if (data.offset) {
+                setOffsets({ ...offsets, [2]: data.offset });
+                setHasNextPage(true);
+                showElement('pagination');
+            }
+
         })
         .catch(error => console.error('Error fetching records:', error));
     }
+
+    const fetchNext = () => {
+        let selectedTable = globalConfig.get('selectedTable');
+        let selectedBase = globalConfig.get('selectedBase');
+        let offset = offsets[currentPage + 1];
+
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&offset=${encodeURIComponent(offset)}`;
+
+        fetch(URL, {
+            method: 'GET',
+            headers: {
+                'Authorization': apiToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const uniqueRecords = [];
+            const recordNames = new Set();
+
+            data.records.forEach(record => {
+                if (!recordNames.has(record.fields.Name)) {
+                    recordNames.add(record.fields.Name);
+                    uniqueRecords.push(record);
+                }
+            });
+
+            setHasPreviousPage(true);
+
+            setRecords(uniqueRecords);
+            globalConfig.setAsync('records', uniqueRecords);
+            document.getElementById('text-input').value = '';
+
+            setCurrentPage(page => page + 1);
+            console.log(data.offset);
+
+            if (data.offset) {
+                setOffsets({ ...offsets, [currentPage + 2]: data.offset });
+                setHasNextPage(true);
+                showElement('pagination');
+            } else {
+                setHasNextPage(false);
+            }
+
+        })
+        .catch(error => console.error('Error fetching records:', error));
+
+    }
     
+    const fetchPrevious = () => {
+        let selectedTable = globalConfig.get('selectedTable');
+        let selectedBase = globalConfig.get('selectedBase');
+        let offset = offsets[currentPage - 1];
+
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
+
+        if (offset) {
+            URL += `&offset=${encodeURIComponent(offset)}`;
+        } else {
+            setHasPreviousPage(false);
+        }
+
+        fetch(URL, {
+            method: 'GET',
+            headers: {
+                'Authorization': apiToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const uniqueRecords = [];
+            const recordNames = new Set();
+
+            data.records.forEach(record => {
+                if (!recordNames.has(record.fields.Name)) {
+                    recordNames.add(record.fields.Name);
+                    uniqueRecords.push(record);
+                }
+            });
+
+            setHasNextPage(true);
+
+            setRecords(uniqueRecords);
+            globalConfig.setAsync('records', uniqueRecords);
+            document.getElementById('text-input').value = '';
+
+            setCurrentPage(page => page - 1);
+
+        })
+        .catch(error => console.error('Error fetching records:', error));
+    }
+
     const saveTable = () => {
         const selectedTableObj = tables.find(t => t.value === table);
         globalConfig.setAsync('selectedTable', selectedTableObj.value)
@@ -172,6 +282,8 @@ function PaymentPlans() {
                     onKeyPress={(event) => {
                         if (event.key === 'Enter') {
                             const searchText = event.target.value;
+                            setSearchText(searchText); // Save the search text
+                            setOffsets({}); // Clear offsets on new search
                             fetchRecords(searchText);
                             event.target.value = ''; 
                         }
@@ -188,7 +300,26 @@ function PaymentPlans() {
                 ) : (
                     <Label>No records found</Label>
                 )}
+                
             </div>
+            <div id="pagination" className="pagination" style={{ display: 'none' }}>
+                    <Button
+                        onClick={() => {
+                            fetchPrevious();
+                        }}
+                        disabled={!hasPreviousPage}
+                    >
+                        Previous
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            fetchNext();
+                        }}
+                        disabled={!hasNextPage}
+                    >
+                        Next
+                    </Button>
+                </div>
         </div>
     );
 }
