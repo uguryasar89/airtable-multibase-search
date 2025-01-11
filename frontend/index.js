@@ -6,7 +6,22 @@ import CustomRecordCard from './CustomRecordCard';
 import { hideElement, showElement } from './util';
 import './styles.css';
 
-const apiToken = config.apiToken; 
+const apiToken = config.apiToken;
+
+function sortRecordsByName(records) {
+    return records.sort((a, b) => {
+        const nameA = a.fields.Name.toLowerCase();
+        const nameB = b.fields.Name.toLowerCase();
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
+        return 0;
+    });
+}
+
+const sortParams = new URLSearchParams({
+    'sort[0][field]': 'Name',
+    'sort[0][direction]': 'asc'
+}).toString();
 
 function PaymentPlans() {
     const [bases, setBases] = useState([]);
@@ -92,7 +107,7 @@ function PaymentPlans() {
         hideElement('pagination');
         setHasPreviousPage(false);
 
-        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&${sortParams}`;
 
         if (offset) {
             URL += `&offset=${encodeURIComponent(offset)}`;
@@ -116,8 +131,10 @@ function PaymentPlans() {
                 }
             });
 
-            setRecords(uniqueRecords);
-            globalConfig.setAsync('records', uniqueRecords);
+            const sortedRecords = sortRecordsByName(uniqueRecords);
+
+            setRecords(sortedRecords);
+            globalConfig.setAsync('records', sortedRecords);
             showElement('recordsDiv');
             document.getElementById('text-input').value = '';
 
@@ -138,7 +155,7 @@ function PaymentPlans() {
         let selectedBase = globalConfig.get('selectedBase');
         let offset = offsets[currentPage + 1];
 
-        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&offset=${encodeURIComponent(offset)}`;
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&offset=${encodeURIComponent(offset)}&${sortParams}`;
 
         fetch(URL, {
             method: 'GET',
@@ -159,9 +176,10 @@ function PaymentPlans() {
             });
 
             setHasPreviousPage(true);
-
-            setRecords(uniqueRecords);
-            globalConfig.setAsync('records', uniqueRecords);
+            const sortedRecords = sortRecordsByName(uniqueRecords);
+            setRecords(sortedRecords);
+            globalConfig.setAsync('records', sortedRecords);
+            
             document.getElementById('text-input').value = '';
 
             setCurrentPage(page => page + 1);
@@ -185,7 +203,7 @@ function PaymentPlans() {
         let selectedBase = globalConfig.get('selectedBase');
         let offset = offsets[currentPage - 1];
 
-        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}`;
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&${sortParams}`;
 
         if (offset) {
             URL += `&offset=${encodeURIComponent(offset)}`;
@@ -213,8 +231,9 @@ function PaymentPlans() {
 
             setHasNextPage(true);
 
-            setRecords(uniqueRecords);
-            globalConfig.setAsync('records', uniqueRecords);
+            const sortedRecords = sortRecordsByName(uniqueRecords);
+            setRecords(sortedRecords);
+            globalConfig.setAsync('records', sortedRecords);
             document.getElementById('text-input').value = '';
 
             setCurrentPage(page => page - 1);
