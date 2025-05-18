@@ -7,14 +7,25 @@ import { hideElement, showElement } from './util';
 import './styles.css';
 
 const apiToken = config.apiToken;
+const currentTableSearchField = config.currentTableSearchField;
 
 function sortRecordsByName(records) {
     return records.sort((a, b) => {
-        // Add more robust name handling
-        const nameA = a.fields && (a.fields.Name || a.fields.name) ? 
-            (a.fields.Name || a.fields.name).toLowerCase() : '';
-        const nameB = b.fields && (b.fields.Name || b.fields.name) ? 
-            (b.fields.Name || b.fields.name).toLowerCase() : '';
+        // More robust name handling that also considers configured search field for current base records
+        const getDisplayName = (record) => {
+            if (!record.fields) return '';
+            
+            // For current base records, use configured search field as the primary field
+            if (!record.isArchive && record.fields[currentTableSearchField]) {
+                return record.fields[currentTableSearchField].toLowerCase();
+            }
+            
+            // Otherwise try Name or name fields
+            return (record.fields.Name || record.fields.name || '').toLowerCase();
+        };
+        
+        const nameA = getDisplayName(a);
+        const nameB = getDisplayName(b);
         
         if (nameA < nameB) return -1;
         if (nameA > nameB) return 1;
@@ -133,12 +144,15 @@ function PaymentPlans() {
         let selectedTable = globalConfig.get('selectedTable');
         let selectedBase = globalConfig.get('selectedBase');
 
-        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`FIND(LOWER("${searchText}"), LOWER({Name}))`)}&${sortParams}`;
+        // More flexible search formula that will match partial text anywhere in the Name field
+        let URL = `https://api.airtable.com/v0/${selectedBase}/${selectedTable}?filterByFormula=${encodeURIComponent(`OR(FIND(LOWER("${searchText}"), LOWER({Name})), FIND("${searchText}", {Name}))`)}&${sortParams}`;
 
         if (offset) {
             URL += `&offset=${encodeURIComponent(offset)}`;
         }
 
+        console.log("Fetching archive records from URL:", URL);
+        
         try {
             const response = await fetch(URL, {
                 method: 'GET',
@@ -172,24 +186,47 @@ function PaymentPlans() {
                 return { records: [] };
             }
 
+            // Get all records and filter them manually
             const query = await table.selectRecordsAsync({
-                sorts: [{ field: 'Name', direction: 'asc' }],
-                filterByFormula: `FIND(LOWER("${searchText}"), LOWER({Name}))`
+                sorts: [{ field: currentTableSearchField, direction: 'asc' }]
             });
 
+            console.log("Current base records fetched:", query.records.length);
+            
+            // Filter records that contain the search text in the configured search field (case insensitive)
+            const filteredRecords = query.records.filter(record => {
+                const fieldValue = record.getCellValue(currentTableSearchField);
+                return fieldValue && 
+                    fieldValue.toString().toLowerCase().includes(searchText.toLowerCase());
+            });
+            
+            console.log("After filtering:", filteredRecords.length);
+
             // Convert Airtable block records to the same format as API records
-            const currentRecords = query.records.map(record => {
+            const currentRecords = filteredRecords.map(record => {
                 try {
-                    const fields = record.getCellValuesByFieldId();
-                    // Make sure Name field exists in a consistent format
-                    if (!fields.Name && fields.name) {
-                        fields.Name = fields.name;
+                    // Create fields object using the correct API methods
+                    const fields = {};
+                    
+                    // Get the field IDs from the table schema
+                    table.fields.forEach(field => {
+                        // Use the getCellValue method instead of getCellValuesByFieldId
+                        const value = record.getCellValue(field.id);
+                        if (value !== null && value !== undefined) {
+                            fields[field.name] = value;
+                        }
+                    });
+                    
+                    // Make sure we have the configured search field for display
+                    if (fields[currentTableSearchField] && !fields.Name) {
+                        fields.Name = fields[currentTableSearchField];
                     }
+                    
                     return {
                         id: record.id,
                         fields: fields,
                         isArchive: false,
-                        createdTime: record.createdTime
+                        createdTime: record.createdTime || new Date().toISOString()
                     };
                 } catch (error) {
                     console.error("Error processing record:", error);
@@ -197,7 +234,7 @@ function PaymentPlans() {
                         id: record.id,
                         fields: { Name: "Error loading record" },
                         isArchive: false,
-                        createdTime: record.createdTime || new Date().toISOString()
+                        createdTime: new Date().toISOString()
                     };
                 }
             });
@@ -215,11 +252,16 @@ function PaymentPlans() {
         setHasPreviousPage(false);
         
         try {
+            console.log("Searching for:", searchText);
+            
             // Fetch records from both bases
             const [archiveResult, currentResult] = await Promise.all([
                 fetchRecordsFromArchiveBase(searchText, offset),
                 fetchRecordsFromCurrentBase(searchText)
             ]);
+            
+            console.log("Archive records found:", archiveResult.records.length);
+            console.log("Current records found:", currentResult.records.length);
 
             // Set offset for pagination
             if (archiveResult.offset) {
@@ -234,21 +276,28 @@ function PaymentPlans() {
             // Combine records from both sources
             const allRecords = [...archiveResult.records, ...currentResult.records];
             
-            // Deduplicate records based on Name field
+            // Modified deduplication logic: Allow duplicates from different sources
             const uniqueRecords = [];
-            const recordNames = new Set();
+            const recordNamesBySource = {
+                archive: new Set(),
+                current: new Set()
+            };
 
             allRecords.forEach(record => {
-                const name = record.fields.Name;
-                if (name && !recordNames.has(name)) {
-                    recordNames.add(name);
+                const name = record.isArchive ? 
+                    (record.fields.Name || '') : 
+                    (record.fields[currentTableSearchField] || record.fields.Name || '');
+                const sourceKey = record.isArchive ? 'archive' : 'current';
+                
+                // Only deduplicate within the same source
+                if (name && !recordNamesBySource[sourceKey].has(name)) {
+                    recordNamesBySource[sourceKey].add(name);
                     uniqueRecords.push(record);
                 }
             });
 
             const sortedRecords = sortRecordsByName(uniqueRecords);
             setRecords(sortedRecords);
-            globalConfig.setAsync('records', sortedRecords);
             showElement('recordsDiv');
             document.getElementById('text-input').value = '';
             setCurrentPage(1);
@@ -280,22 +329,29 @@ function PaymentPlans() {
                 setHasNextPage(false);
             }
 
-            // Combine and deduplicate records
+            // Modified deduplication logic: Allow duplicates from different sources
             const allRecords = [...archiveResult.records, ...currentResult.records];
             const uniqueRecords = [];
-            const recordNames = new Set();
+            const recordNamesBySource = {
+                archive: new Set(),
+                current: new Set()
+            };
 
             allRecords.forEach(record => {
-                const name = record.fields.Name;
-                if (name && !recordNames.has(name)) {
-                    recordNames.add(name);
+                const name = record.isArchive ? 
+                    (record.fields.Name || '') : 
+                    (record.fields[currentTableSearchField] || record.fields.Name || '');
+                const sourceKey = record.isArchive ? 'archive' : 'current';
+                
+                // Only deduplicate within the same source
+                if (name && !recordNamesBySource[sourceKey].has(name)) {
+                    recordNamesBySource[sourceKey].add(name);
                     uniqueRecords.push(record);
                 }
             });
 
             const sortedRecords = sortRecordsByName(uniqueRecords);
             setRecords(sortedRecords);
-            globalConfig.setAsync('records', sortedRecords);
             document.getElementById('text-input').value = '';
             
             setCurrentPage(page => page + 1);
@@ -325,22 +381,29 @@ function PaymentPlans() {
             
             setHasNextPage(true);
             
-            // Combine and deduplicate records
+            // Modified deduplication logic: Allow duplicates from different sources
             const allRecords = [...archiveResult.records, ...currentResult.records];
             const uniqueRecords = [];
-            const recordNames = new Set();
+            const recordNamesBySource = {
+                archive: new Set(),
+                current: new Set()
+            };
 
             allRecords.forEach(record => {
-                const name = record.fields.Name;
-                if (name && !recordNames.has(name)) {
-                    recordNames.add(name);
+                const name = record.isArchive ? 
+                    (record.fields.Name || '') : 
+                    (record.fields[currentTableSearchField] || record.fields.Name || '');
+                const sourceKey = record.isArchive ? 'archive' : 'current';
+                
+                // Only deduplicate within the same source
+                if (name && !recordNamesBySource[sourceKey].has(name)) {
+                    recordNamesBySource[sourceKey].add(name);
                     uniqueRecords.push(record);
                 }
             });
 
             const sortedRecords = sortRecordsByName(uniqueRecords);
             setRecords(sortedRecords);
-            globalConfig.setAsync('records', sortedRecords);
             document.getElementById('text-input').value = '';
             
             setCurrentPage(page => page - 1);

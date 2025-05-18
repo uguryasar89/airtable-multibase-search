@@ -1,5 +1,8 @@
 import React from 'react';
 import { Box, Label } from '@airtable/blocks/ui';
+import config from '../config';
+
+const currentTableSearchField = config.currentTableSearchField;
 
 const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView, isArchive }) => {
     // Safety check for record data
@@ -16,8 +19,10 @@ const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView, i
         }
     };
 
-    // Safely get the name from fields
-    const recordName = record.fields.Name || record.fields.name || "Unnamed Record";
+    // Safely get the name from fields, using different fields based on source
+    const recordName = isArchive ? 
+        (record.fields.Name || record.fields.name || "Unnamed Record") : 
+        (record.fields[currentTableSearchField] || record.fields.Name || record.fields.name || "Unnamed Record");
 
     return (
         <Box
@@ -50,7 +55,7 @@ const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView, i
                     padding="8px 12px"
                 >
                     <span style={{ color: "white", fontWeight: "bold", fontSize: "12px" }}>
-                        {isArchive ? "Archive" : "Current"}
+                        {isArchive ? "Archive" : "Active Record"}
                     </span>
                 </Box>
             </Box>
