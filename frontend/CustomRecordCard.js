@@ -1,12 +1,28 @@
 import React from 'react';
 import { Box, Label } from '@airtable/blocks/ui';
+import config from '../config';
 
-const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView }) => {
+const currentTableSearchField = config.currentTableSearchField;
 
+const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView, isArchive }) => {
+    // Safety check for record data
+    if (!record || !record.fields) {
+        return null;
+    }
+    
     const handleClick = () => {
-        const url = `https://airtable.com/${selectedBase}/${selectedTable}/${selectedView}/${record.id}?copyLinkToCellOrRecordOrigin=gridView&blocks=hide`;
-        window.open(url, "_blank");
+        try {
+            const url = `https://airtable.com/${selectedBase}/${selectedTable}/${selectedView}/${record.id}?copyLinkToCellOrRecordOrigin=gridView&blocks=hide`;
+            window.open(url, "_blank");
+        } catch (error) {
+            console.error("Error opening record link:", error);
+        }
     };
+
+    // Safely get the name from fields, using different fields based on source
+    const recordName = isArchive ? 
+        (record.fields.Name || record.fields.name || "Unnamed Record") : 
+        (record.fields[currentTableSearchField] || record.fields.Name || record.fields.name || "Unnamed Record");
 
     return (
         <Box
@@ -21,9 +37,28 @@ const CustomRecordCard = ({ record, selectedBase, selectedTable, selectedView })
             onClick={handleClick}
             style={{ cursor: 'pointer' }}
         >
-            <Label size="large" marginBottom={2}>
-                {record.fields.Name}
-            </Label>
+            <Box 
+                display="flex" 
+                justifyContent="space-between" 
+                alignItems="center"
+                width="100%"
+            >
+                <Label size="large" style={{ 
+                    wordBreak: "break-word", 
+                    maxWidth: "80%" 
+                }}>
+                    {recordName}
+                </Label>
+                <Box 
+                    backgroundColor={isArchive ? "#FFA500" : "#4CAF50"}
+                    borderRadius="large"
+                    padding="8px 12px"
+                >
+                    <span style={{ color: "white", fontWeight: "bold", fontSize: "12px" }}>
+                        {isArchive ? "Archive" : "Active Record"}
+                    </span>
+                </Box>
+            </Box>
         </Box>
     );
 };

@@ -60,3 +60,32 @@
 	flex-direction: column;
 	justify-content: flex-start;
 }
+
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+
+.badge-archive {
+    background-color: #FFA500;
+}
+
+.badge-current {
+    background-color: #4CAF50;
+}
+
+.loading {
+    margin-top: 10px;
+    font-style: italic;
+    color: #666;
+}
